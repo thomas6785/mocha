@@ -9,6 +9,6 @@
   upstream:
   {
     url: https://github.com/lowRISC/ariane-ethernet.git
-    rev: ff9710f05f0e1a0c9deda256ae6e5a7abffaa097
+    rev: 1a14e8d98a0160f06e31e7a903082d0c8d293720
   }
 }
