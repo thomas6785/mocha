@@ -3,24 +3,19 @@
 This page contains useful commands and tips on how to develop on the Mocha repository.
 It collects both design, software and verification instructions.
 
-## Setup Python virtual environment
+## Setup development environment
 
-### Using uv on macOS and Linux
-
+Install Nix:
 ```sh
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Create the virtual environment.
-uv venv
-uv sync --all-extras
-
-# Enter the environment (do it every time).
-source .venv/bin/activate
+curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install | sh -s -- --daemon
 ```
 
-### Using Nix or NixOS
+Make sure the experimental features "flakes" and "nix-command" are enabled by adding the following to `/etc/nix/nix.conf` or `~/.config/nix/nix.conf`:
+```
+experimental-features = nix-command flakes
+```
 
+Enter the development shell that includes Python environment, CHERI compiler and more.
 ```sh
 nix develop
 ```
@@ -73,26 +68,33 @@ We use Verilator to simulate our hardware design and use FuseSoC as a build syst
 To build and run a Verilator simulation of Mocha, run:
 ```sh
 # Build simulator.
-fusesoc --cores-root=. run --target=sim --tool=verilator --setup --build lowrisc:mocha:top_chip_verilator --verilator_options="-j 4 --threads 2 --trace-threads 2" --make_options="-j 4"
+fusesoc --cores-root=. run --target=sim --tool=verilator --setup --build lowrisc:mocha:top_chip_verilator --verilator_options="--threads 2 --trace-threads 2" --make_options="-j 4"
 # Run simulator.
 build/lowrisc_mocha_top_chip_verilator_0/sim-verilator/Vtop_chip_verilator -r build/sw/device/bootrom/bootrom_scrambled.vmem -E build/sw/device/examples/hello_world
+# Check the UART output.
+cat uart0.log
 ```
 
-Note that the `-j 4` arguments speed up simulator building, while the `--threads 2 --trace-threads 2` arguments speed up simulator running.
+Note that the `-j 4` argument speeds up simulator building, while the `--threads 2 --trace-threads 2` arguments speed up simulator running.
 For maximum tracing performance, omit `--threads 2`.
 For maximum non-tracing performance, or when using Verilator v5.048 onwards, omit `--trace-threads 2`.
 
 One specific feature of our simulator is that you can exit the simulation by using the following magic string:
 `Safe to exit simulator.\xd8\xaf\xfb\xa0\xc7\xe1\xa9\xd7`
 
-To connect to the debug module, run in another terminal:
+To connect to the debug module:
 ```sh
+# Run the simulator with a program that doesn't end.
+build/lowrisc_mocha_top_chip_verilator_0/sim-verilator/Vtop_chip_verilator -r build/sw/device/bootrom/bootrom_scrambled.vmem -E build/sw/device/examples/infinite_loop
+# In a different terminal, run openocd.
 openocd -f util/verilator-openocd-cfg.tcl
+# In yet another terminal run GDB.
+gdb --eval-command="target extended-remote localhost:3333" build/sw/device/examples/infinite_loop
 ```
 
 To run the Verilator tests, first build the software, then run:
 ```sh
-ctest --test-dir build/sw -R sim_verilator
+ctest --test-dir build/sw -R sim_verilator -LE slow
 ```
 
 The contents of the Verilator testbench SD card model can optionally be set by providing an ["sd.img" file](https://github.com/lowRISC/sonata-system/blob/main/doc/guide/sdcard-setup.md) in the repository root directory.
@@ -133,7 +135,7 @@ openFPGALoader -b genesys2 build/lowrisc_mocha_chip_mocha_genesys2_0/synth-vivad
 
 Then, to load and run a single software binary on FPGA, first build the software, then run:
 ```sh
-util/fpga_runner.py run build/sw/device/examples/hello_world
+util/fpga_runner.py run -e build/sw/device/examples/hello_world
 ```
 
 Replace `run` above with `test` to see UART output in-line, or open a separate UART terminal (instructions below).
@@ -143,11 +145,11 @@ Or, to run all the FPGA tests, first build the software, then run:
 ctest --test-dir build/sw -R fpga_genesys2
 ```
 
-### Booting U-Boot
+### Booting CHERI Linux
 
-To run U-Boot (wrapped in the OpenSBI firmware and bootloader) on the Genesys 2 board, run:
+To run CHERI Linux on the Genesys 2 board, run:
 ```sh
-util/fpga_runner.py run build/sw/opensbi_with_uboot/fw_payload.elf
+util/fpga_runner.py run -e build/sw/opensbi_with_uboot/opensbi_with_uboot_fw_payload.elf -f build/sw/linux/linux_image 0x90000000 -f build/sw/rootfs_uboot_image 0xa0000000
 ```
 
 ### Standalone UART
@@ -177,7 +179,7 @@ You can build a custom FPGA bitstream by using the patch that is located in the 
 
 Once you have connected OpenOCD to your hardware target you can connect GDB by using the following command:
 ```sh
-gdb-multiarch --eval-command="target extended-remote localhost:3333" build/sw/device/examples/infinite_loop
+gdb --eval-command="target extended-remote localhost:3333" build/sw/device/examples/infinite_loop
 ```
 
 You can then read registers using `info reg`, read memory (e.g. `x/x 0x00080000`), write memory (e.g. `set *0x80001000 = 0xdeadbeef`), set break points (e.g. `break *0x100000d0`) and continue running until that breakpoint with `run`.
