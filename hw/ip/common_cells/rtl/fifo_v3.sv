@@ -23,11 +23,12 @@ module fifo_v3 #(
   output dtype data_o,
   input  logic pop_i
 );
+  localparam USAGE_WIDTH = $clog2(DEPTH+1);
   logic unused_testmode;
   logic wready;
   logic unused_rvalid;
   logic full;
-  logic [ADDR_DEPTH-1:0] usage;
+  logic [USAGE_WIDTH-1:0] usage;
   logic err;
 
   prim_fifo_sync #(
@@ -55,7 +56,9 @@ module fifo_v3 #(
 
   assign full_o  = full | err | ~wready;
   assign empty_o = ((usage == '0) & ~full) | err;
-  assign usage_o = usage;
+  assign usage_o = usage[ADDR_DEPTH-1:0];
+  logic unused_usage_msb;
+  assign unused_usage_msb = usage[USAGE_WIDTH-1]; // the MSB of usage_o is redundant with full_o
 
   assign unused_testmode = testmode_i;
 endmodule

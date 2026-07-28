@@ -23,6 +23,8 @@ module prim_clock_buf #(
   end else begin : gen_fpga_buf
     if (RegionSel) begin : gen_bufr
       BUFR bufr_i (
+        .CE(1'b1), // clock enable. Does nothing in bypass mode which is the default, but included to avoid warnings
+        .CLR(1'b0), // as above
         .I(clk_i),
         .O(clk_o)
       );

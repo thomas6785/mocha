@@ -639,8 +639,7 @@ module top_chip_system #(
     .AxiAddrWidth ( top_pkg::AxiAddrWidth ),
     .AxiDataWidth ( top_pkg::AxiDataWidth ),
     .req_lite_t   ( top_pkg::axi_lite_req_t  ),
-    .resp_lite_t  ( top_pkg::axi_lite_resp_t ),
-    .addr_t       ( top_pkg::addr_t )
+    .resp_lite_t  ( top_pkg::axi_lite_resp_t )
   ) u_axi_lite_mailbox (
     .clk_i       ( clkmgr_clocks.clk_main_infra ),
     .rst_ni      ( rstmgr_resets.rst_main_n[rstmgr_pkg::DomainMainSel] ),
